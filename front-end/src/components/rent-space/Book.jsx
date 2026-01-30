@@ -417,11 +417,7 @@ export default function Book() {
 
                     {/* Image */}
                     <div className="p-2 h-[60vh]">
-                        <Images
-                            fileUrls={JSON.parse(
-                                markerDetails.fileUrls || "[]"
-                            )}
-                        />
+                        <Images fileUrls={markerDetails.fileUrls} />
                     </div>
 
                     {/* Book Tiket */}

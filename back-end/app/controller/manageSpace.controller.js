@@ -1,111 +1,90 @@
-let query = require("../model/db.js");
+import SpaceProvider from "../model/SpaceProvider.model.js";
+import RentDetail from "../model/RentDetails.model.js";
 
-async function login(req, res) {
-    let result = await query(
-        "SELECT * FROM space_provider WHERE email = ? AND password = ?",
-        [req.body.email, req.body.password]
-    );
-    if (result.length) {
-        res.json({
-            isSuccess: true,
-            message: "Login successfully",
-            data: {
-                ...result[0],
-            },
-        });
-    } else {
-        res.json({
-            isSuccess: false,
-            message: "Invalid email or password",
-            data: {},
-        });
-    }
-}
+/**
+ * LOGIN (Space Provider)
+ */
+export const login = async (req, res) => {
+  const { email, password } = req.body;
 
-async function addUser(req, res) {
-    if (req.body.edit) {
-        // Check if space is already booked
-        // Do not allow to edit if space is already booked
+  const provider = await SpaceProvider.findOne({ email, password });
 
-        // code here
+  if (!provider) {
+    return res.json({
+      isSuccess: false,
+      message: "Invalid email or password",
+      data: {},
+    });
+  }
 
-        // end
+  res.json({
+    isSuccess: true,
+    message: "Login successfully",
+    data: provider,
+  });
+};
 
-        let result = await query(
-            "DELETE FROM space_provider WHERE providerId = ?",
-            [req.body.providerId]
-        );
+/**
+ * ADD / EDIT SPACE PROVIDER
+ */
+export const addUser = async (req, res) => {
+  const {
+    edit,
+    providerId,
+    email,
+    fileUrls,
+  } = req.body;
 
-        if (!result.affectedRows) {
-            res.json({
-                isSuccess: false,
-                message: "Something went wrong",
-                data: {},
-            });
-        }
-    }
+  // Edit case (delete old provider & recreate)
+  if (edit && providerId) {
+    await SpaceProvider.findByIdAndDelete(providerId);
+  }
 
-    const existingUser = await query(
-        "SELECT * FROM space_provider WHERE email = ?;",
-        [req.body.email]
-    );
+  // Check duplicate email
+  const existingUser = await SpaceProvider.findOne({ email });
+  if (existingUser) {
+    return res.json({
+      isSuccess: false,
+      message: "duplicate_email",
+    });
+  }
 
-    if (existingUser.length > 0) {
-        // If the email already exists, send a duplicate_email response
-        return res.json({
-            isSuccess: false,
-            message: "duplicate_email",
-        });
-    }
+  const provider = await SpaceProvider.create({
+    ...req.body,
+    phoneNo: Number(req.body.phoneNo),
+    maxSpace: Number(req.body.maxSpace),
+    ratePerHour: Number(req.body.ratePerHour),
+    fileUrls: fileUrls || [],
+    status: 0,
+  });
 
-    let result = await query(
-        "INSERT INTO space_provider (fullName, spaceName, email, password, phoneNo, latitude, longitude, `from`, `to`, maxSpace, ratePerHour, fileUrls, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
-        [
-            req.body.fullName,
-            req.body.spaceName,
-            req.body.email,
-            req.body.password,
-            Number(req.body.phoneNo),
-            req.body.latitude,
-            req.body.longitude,
-            req.body.from,
-            req.body.to,
-            Number(req.body.maxSpace),
-            Number(req.body.ratePerHour),
-            JSON.stringify(req.body.fileUrls),
-            0,
-        ]
-    );
-    if (result.affectedRows) {
-        res.json({
-            isSuccess: true,
-            message: "Account created successfully",
-            data: {
-                providerId: result.insertId,
-                ...req.body,
-            },
-        });
-    }
-}
+  res.json({
+    isSuccess: true,
+    message: "Account created successfully",
+    data: provider,
+  });
+};
 
-async function rentDetails(req, res) {
-    let result = await query(
-        "SELECT * FROM rent_details JOIN space_renter ON rent_details.renterId = space_renter.renterId WHERE providerId = ?",
-        [req.body.providerId]
-    );
-    if (result.length) {
-        res.json({
-            isSuccess: true,
-            message: "Rent details fetched",
-            data: result,
-        });
-    } else {
-        res.json({
-            isSuccess: false,
-            message: "No rent details found",
-            data: {},
-        });
-    }
-}
+/**
+ * RENT DETAILS FOR PROVIDER
+ */
+export const rentDetails = async (req, res) => {
+  const { providerId } = req.body;
 
-module.exports = { addUser, login, rentDetails };
+  const rentData = await RentDetail.find({ providerId })
+    .populate("renterId", "userName email phoneNo");
+
+  if (!rentData.length) {
+    return res.json({
+      isSuccess: false,
+      message: "No rent details found",
+      data: [],
+    });
+  }
+
+  res.json({
+    isSuccess: true,
+    message: "Rent details fetched",
+    data: rentData,
+  });
+};

@@ -1,246 +1,157 @@
-let query = require("../model/db.js");
-const stripe = require("stripe")(process.env.STRIPE_PRIVATE_KEY);
+import SpaceRenter from "../model/SpaceRenter.model.js";
+import SpaceProvider from "../model/SpaceProvider.model.js";
+import RentDetail from "../model/RentDetails.model.js";
 
-async function login(req, res) {
-    let result = await query(
-        "SELECT * FROM space_renter WHERE email = ? AND password = ?",
-        [req.body.email, req.body.password]
-    );
-    if (result.length) {
-        res.json({
-            isSuccess: true,
-            message: "Login successfully",
-            data: {
-                ...result[0],
-            },
-        });
-    } else {
-        res.json({
-            isSuccess: false,
-            message: "Invalid email or password",
-            data: {},
-        });
-    }
-}
+/**
+ * LOGIN (Space Renter)
+ */
+export const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
-async function getMarker(req, res) {
-    console.log(req.body);
+    const renter = await SpaceRenter.findOne({ email, password });
 
-    let result = await query(
-        "SELECT * FROM space_provider WHERE (ABS(latitude - ?) < 0.3 OR ABS(longitude - ?) < 0.3) AND status = 1 AND TIME(STR_TO_DATE(?, '%Y-%m-%dT%H:%i')) >= `from` AND TIME(STR_TO_DATE(?, '%Y-%m-%dT%H:%i')) <= `to`;",
-        [req.body.latitude, req.body.longitude, req.body.from, req.body.to]
-    );
-
-    let filterted = await filterMarker(result);
-
-    if (filterted.length) {
-        res.json({
-            isSuccess: true,
-            message: "Marker successfully fetched",
-            data: filterted,
-        });
-    } else {
-        res.json({
-            isSuccess: false,
-            message: "No marker found",
-            data: [],
-        });
+    if (!renter) {
+      return res.json({
+        isSuccess: false,
+        message: "Invalid email or password",
+        data: {},
+      });
     }
 
-    async function filterMarker(result) {
-        let filterted = [];
+    res.json({
+      isSuccess: true,
+      message: "Login successfully",
+      data: renter,
+    });
+  } catch (error) {
+    res.status(500).json({
+      isSuccess: false,
+      message: "Server error",
+      data: {},
+    });
+  }
+};
 
-        for (let i = 0; i < result.length; i++) {
-            console.log(result[i].providerId, req.body.from, req.body.to);
-            let spotIndexs = await query(
-                "SELECT spotIndex FROM rent_details WHERE providerId = ? AND STR_TO_DATE(?, '%Y-%m-%dT%H:%i') < `to` AND STR_TO_DATE(?, '%Y-%m-%dT%H:%i') > `from`;",
-                [result[i].providerId, req.body.from, req.body.to]
-            );
+/**
+ * REGISTER (Space Renter)
+ */
+export const addUser = async (req, res) => {
+  try {
+    const { email } = req.body;
 
-            let maxSpace = result[i].maxSpace;
-
-            let spaceDestribution = [];
-
-            for (let j = 0; j < spotIndexs.length; j++) {
-                spaceDestribution[spotIndexs[j].spotIndex] = 1;
-            }
-
-            for (let j = 0; j < maxSpace; j++) {
-                if (spaceDestribution[j] != 1) {
-                    filterted.push({
-                        ...result[i],
-                        availableSpotIndex: j,
-                    });
-                    break;
-                }
-            }
-        }
-
-        return filterted;
-    }
-}
-
-async function addUser(req, res) {
-    const existingUser = await query(
-        "SELECT * FROM space_renter WHERE email = ?;",
-        [req.body.email]
-    );
-
-    if (existingUser.length > 0) {
-        // If the email already exists, send a duplicate_email response
-        return res.json({
-            isSuccess: false,
-            message: "duplicate_email",
-        });
+    const exists = await SpaceRenter.findOne({ email });
+    if (exists) {
+      return res.json({
+        isSuccess: false,
+        message: "duplicate_email",
+      });
     }
 
-    let result = await query(
-        "INSERT INTO space_renter (userName, email, password, phoneNo) VALUES (?, ?, ?, ?);",
-        [req.body.fullName, req.body.email, req.body.password, req.body.phoneNo]
-    );
-    if (result.affectedRows) {
-        res.json({
-            isSuccess: true,
-            message: "Account created successfully",
-            data: {
-                id: result.insertId,
-                ...req.body,
-            },
-        });
-    }
-}
+    const renter = await SpaceRenter.create(req.body);
 
-async function bookTicket(req, res) {
-    let result = await query(
-        "INSERT INTO rent_details (providerId, renterId, spotIndex, `from`, `to`, vehicleNo) VALUES (?, ?, ?, ?, ?, ?);",
-        [
-            req.body.providerId,
-            req.body.renterId,
-            req.body.spotIndex,
-            req.body.from,
-            req.body.to,
-            req.body.vehicleNo,
-        ]
-    );
-    if (result.affectedRows) {
-        res.json({
-            isSuccess: true,
-            message: "Account created successfully",
-            data: {
-                id: result.insertId,
-                ...req.body,
-            },
-        });
-    }
-}
+    res.json({
+      isSuccess: true,
+      message: "Account created successfully",
+      data: renter,
+    });
+  } catch (error) {
+    res.status(500).json({
+      isSuccess: false,
+      message: "Server error",
+      data: {},
+    });
+  }
+};
 
-async function booked(req, res) {
-    let result = await query(
-        "SELECT B.fullName, B.spaceName, B.phoneNo, B.ratePerHour, B.email, A.from, A.to, A.vehicleNo FROM rent_details A JOIN space_provider B ON A.providerId = B.providerId WHERE A.renterId = ? AND A.to > NOW();",
-        [req.body.renterId]
-    );
+/**
+ * GET NEARBY PARKING SPACES
+ */
+export const getMarker = async (req, res) => {
+  try {
+    const { latitude, longitude } = req.body;
 
-    console.log(result);
-
-    if (result.length) {
-        res.json({
-            isSuccess: true,
-            message: "Parking Booked data fetched successfully",
-            data: result,
-        });
-    }
-}
-
-async function history(req, res) {
-    let result = await query(
-        "SELECT B.fullName, B.spaceName, B.phoneNo, B.ratePerHour, B.email, A.from, A.to, A.vehicleNo FROM rent_details A JOIN space_provider B ON A.providerId = B.providerId WHERE A.renterId = ? AND A.to < NOW();",
-        [req.body.renterId]
-    );
-
-    console.log(result);
-
-    if (result.length) {
-        res.json({
-            isSuccess: true,
-            message: "Parking Booked data fetched successfully",
-            data: result,
-        });
-    }
-}
-
-async function createSession(req, res) {
-    let from = Date.parse(req?.body?.from);
-    let to = Date.parse(req?.body?.to);
-
-    let hours = Number(((to - from) / (10 * 60 * 60)).toFixed(0));
-    let ratePerHour = req?.body?.ratePerHour;
-
-    const session = await stripe.checkout.sessions.create({
-        payment_method_types: ["card"],
-        line_items: [
-            {
-                price_data: {
-                    currency: "INR",
-                    product_data: {
-                        name: "Book Parking Spot",
-                    },
-                    unit_amount: hours * ratePerHour,
-                },
-                quantity: 1,
-            },
-        ],
-        metadata: req.body,
-        mode: "payment",
-        success_url: "http://localhost:3000?status=1",
-        cancel_url: "http://localhost:3000?status=0",
+    const providers = await SpaceProvider.find({
+      status: 1,
+      latitude: { $gte: latitude - 0.3, $lte: latitude + 0.3 },
+      longitude: { $gte: longitude - 0.3, $lte: longitude + 0.3 },
     });
 
-    res.json({ id: session.id });
-}
+    res.json({
+      isSuccess: true,
+      message: "Marker fetched",
+      data: providers,
+    });
+  } catch (error) {
+    res.status(500).json({
+      isSuccess: false,
+      message: "Server error",
+      data: [],
+    });
+  }
+};
 
-async function verifyPayment(req, res) {
-    const endpointSecret = process.env.STRIPE_ENDPOINT_SECRET;
+/**
+ * BOOK PARKING SLOT
+ */
+export const bookTicket = async (req, res) => {
+  try {
+    const booking = await RentDetail.create(req.body);
 
-    const sig = req.headers["stripe-signature"];
-    let event;
+    res.json({
+      isSuccess: true,
+      message: "Parking booked successfully",
+      data: booking,
+    });
+  } catch (error) {
+    res.status(500).json({
+      isSuccess: false,
+      message: "Server error",
+      data: {},
+    });
+  }
+};
 
-    try {
-        event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-    } catch (err) {
-        console.log(err);
-        res.status(400).send(`Webhook Error: ${err.message}`);
-        return;
-    }
+/**
+ * CURRENT BOOKINGS
+ */
+export const booked = async (req, res) => {
+  try {
+    const data = await RentDetail.find({
+      renterId: req.body.renterId,
+      to: { $gte: new Date() },
+    }).populate("providerId");
 
-    if (event.type === "checkout.session.completed") {
-        console.log("Payment was successful!");
+    res.json({
+      isSuccess: true,
+      data,
+    });
+  } catch (error) {
+    res.status(500).json({
+      isSuccess: false,
+      data: [],
+    });
+  }
+};
 
-        const data = event.data.object.metadata;
+/**
+ * BOOKING HISTORY
+ */
+export const history = async (req, res) => {
+  try {
+    const data = await RentDetail.find({
+      renterId: req.body.renterId,
+      to: { $lt: new Date() },
+    }).populate("providerId");
 
-        let result = await query(
-            "INSERT INTO rent_details (providerId, renterId, spotIndex, `from`, `to`, vehicleNo) VALUES (?, ?, ?, ?, ?, ?);",
-            [
-                data.providerId,
-                data.renterId,
-                data.spotIndex,
-                data.from,
-                data.to,
-                data.vehicleNo,
-            ]
-        );
-        if (result.affectedRows) {
-            res.send();
-        }
-    }
-}
-
-module.exports = {
-    addUser,
-    login,
-    getMarker,
-    bookTicket,
-    booked,
-    history,
-    createSession,
-    verifyPayment,
+    res.json({
+      isSuccess: true,
+      data,
+    });
+  } catch (error) {
+    res.status(500).json({
+      isSuccess: false,
+      data: [],
+    });
+  }
 };

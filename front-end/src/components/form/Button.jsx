@@ -1,17 +1,26 @@
 import React from "react";
 
 export default function Button(props) {
-    return (
-        <button
-            className={`rounded block active:scale-[0.99] ${props.className}`}
-            onClick={props.onClick}
-            type={props.type}
-            disabled={props.disabled}
-            style={{
-                backgroundColor: props.disabled ? "#d1d5db" : "",
-            }}
-        >
-            {props.children}
-        </button>
-    );
+  const {
+    className = "",
+    onClick,
+    type = "button",
+    disabled = false,
+    children,
+  } = props;
+
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      className={`rounded block active:scale-[0.99] ${className}`}
+      style={{
+        backgroundColor: disabled ? "#d1d5db" : undefined,
+        cursor: disabled ? "not-allowed" : "pointer",
+      }}
+    >
+      {children}
+    </button>
+  );
 }

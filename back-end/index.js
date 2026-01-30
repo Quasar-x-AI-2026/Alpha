@@ -1,43 +1,26 @@
-require("dotenv").config();
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import connectDB from "./config/db.js";
+import router from "./app/router/router.js";
 
-let cors = require("cors");
-let express = require("express");
-let router = require("./app/router/router.js");
+dotenv.config();
+connectDB();
 
-let counter = 0;
-let app = express();
+const app = express();
 
-app.use(
-    cors({
-        origin: "*",
-    })
-);
+const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:3000";
+app.use(cors({
+  origin: CLIENT_URL,
+  credentials: true,
+}));
 
-app.use("/web-hook", express.raw({ type: "application/json" }));
 app.use(express.json());
-app.use(function (req, res, next) {
-    console.log(`${counter++}. ${req.method} ${req.url}`);
-    console.log(req.body);
-    next();
-});
 
-// Serve static files
-app.use(express.static("public"));
+app.use("/", router);
 
-try {
-    app.use("/", router);
-} catch (e) {
-    console.log(e);
-
-    app.get("/*", (req, res) => {
-        res.json({
-            isSuccess: false,
-            message: "Error in server",
-            data: {},
-        });
-    });
-}
-
-app.listen(8080, function () {
-    console.log("App listening on port 8080...");
+// Align with frontend default BASE_URL (http://localhost:8080)
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });

@@ -1,11 +1,8 @@
-function errorHandler(err, req, res, next) {
-    res.set("status", "500");
-    res.json({
-        isSuccess: false,
-        message: `${err.message}`,
-        callstack: `${err.callstack}`,
-        data: {},
-    });
-}
-
-module.exports = { errorHandler };
+export const errorHandler = (err, req, res, next) => {
+  res.status(500).json({
+    isSuccess: false,
+    message: err.message || "Internal Server Error",
+    callstack: err.stack || null,
+    data: {},
+  });
+};

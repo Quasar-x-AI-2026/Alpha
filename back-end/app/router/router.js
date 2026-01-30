@@ -1,40 +1,40 @@
-/* eslint-disable prettier/prettier */
+// app/router/router.js
+import express from "express";
 
-let express = require("express");
-const path = require("path");
-let router = express.Router();
+import * as manageSpace from "../controller/manageSpace.controller.js";
+import * as rentSpace from "../controller/rentSpace.controller.js";
+import * as admin from "../controller/admin.controller.js";
 
-// Import Controllers
-let manageSpaceController = require("../controller/manageSpace.controller");
-let rentSpaceController = require("../controller/rentSpace.controller");
-let adminController = require("../controller/admin.controller");
-let fileUploadController = require("../controller/fileUpload.controller");
-let errorHandlerController = require("../controller/errorHandler.controller");
+import {
+  uploadMiddleware,
+  uploadHandler,
+} from "../controller/fileUpload.controller.js";
 
-// Manage Space
-router.post("/api/manage-space/login", manageSpaceController.login);
-router.post("/api/manage-space/add-user", manageSpaceController.addUser);
-router.post("/api/manage-space/get-rent-details", manageSpaceController.rentDetails);
+import { errorHandler } from "../controller/errorHandler.controller.js";
 
-// Rent Space
-router.post("/api/rent-space/login", rentSpaceController.login);
-router.post("/api/rent-space/add-user", rentSpaceController.addUser);
-router.post("/api/rent-space/get-marker", rentSpaceController.getMarker);
-router.post("/api/rent-space/book-ticket", rentSpaceController.bookTicket);
-router.post("/api/rent-space/booked", rentSpaceController.booked);
-router.post("/api/rent-space/history", rentSpaceController.history);
-router.post("/create-checkout-session", rentSpaceController.createSession);
-router.post("/web-hook", rentSpaceController.verifyPayment);
+const router = express.Router();
 
+// -------------------- Manage Space (Provider) --------------------
+router.post("/api/manage-space/login", manageSpace.login);
+router.post("/api/manage-space/add-user", manageSpace.addUser);
+router.post("/api/manage-space/get-rent-details", manageSpace.rentDetails);
 
-// Admin
-router.post("/api/admin/login", adminController.login);
-router.post("/api/admin/change-status", adminController.changeStatus);
+// -------------------- Rent Space (Renter) --------------------
+router.post("/api/rent-space/login", rentSpace.login);
+router.post("/api/rent-space/add-user", rentSpace.addUser);
+router.post("/api/rent-space/get-marker", rentSpace.getMarker);
+router.post("/api/rent-space/book-ticket", rentSpace.bookTicket);
+router.post("/api/rent-space/booked", rentSpace.booked);
+router.post("/api/rent-space/history", rentSpace.history);
 
-// File upload
-router.post("/api/upload", fileUploadController.uploadMiddleware, fileUploadController.uploadHandler);
-router.get("/*", (req, res) => { res.sendFile(path.join(__dirname, "../../public/", "index.html")); });
+// -------------------- Admin --------------------
+router.post("/api/admin/login", admin.login);
+router.post("/api/admin/change-status", admin.changeStatus);
 
-router.use(errorHandlerController.errorHandler);
+// -------------------- Upload --------------------
+router.post("/api/upload", uploadMiddleware, uploadHandler);
 
-module.exports = router;
+// -------------------- Error Handler (LAST) --------------------
+router.use(errorHandler);
+
+export default router;

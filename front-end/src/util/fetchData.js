@@ -1,24 +1,45 @@
-async function fetchData(method, url, data, headers) {
-    let response = null;
+const BASE_URL = process.env.REACT_APP_SERVER_URL || "http://localhost:8080";
+
+async function fetchData(method, url, data = null, headers = {}) {
+  try {
+    const response = await fetch(BASE_URL + url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...headers,
+      },
+      credentials: "include", // safe for future JWT/cookies
+      body: data ? JSON.stringify(data) : undefined,
+    });
+
+    const text = await response.text();
+
+    let result;
     try {
-        response = await fetch(process.env.REACT_APP_BASEURL + url, {
-            method: method,
-            headers: {
-                "Content-Type": "application/json",
-                token: localStorage.getItem("token"),
-                ...headers,
-            },
-            body: JSON.stringify(data),
-        });
-    } catch (error) {
-        console.log("Error From fetchData functon");
-        console.log(error);
+      result = text ? JSON.parse(text) : {};
+    } catch {
+      return {
+        isSuccess: false,
+        message: "Invalid server response",
+      };
     }
 
-    if (!response) return;
+    if (!response.ok) {
+      return {
+        isSuccess: false,
+        message: result.message || "Request failed",
+        status: response.status,
+      };
+    }
 
-    let result = await response?.json();
     return result;
+  } catch (error) {
+    console.error("Error from fetchData:", error);
+    return {
+      isSuccess: false,
+      message: "Server not reachable",
+    };
+  }
 }
 
 export default fetchData;

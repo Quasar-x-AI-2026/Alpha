@@ -8,20 +8,23 @@ import RentSpace from "./pages/RentSpace";
 import Admin from "./pages/Admin";
 
 function App() {
-    return (
-        <div className="app">
-            <GlobalContextComponent>
-                <Toaster position="top-right" reverseOrder={false} />
-                <Routes>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/manage-space/*" element={<ManageSpace />} />
-                    <Route path="/rent-space/*" element={<RentSpace />} />
-                    <Route path="/admin/*" element={<Admin />} />
-                    <Route path="/*" element={<Home />} />
-                </Routes>
-            </GlobalContextComponent>
-        </div>
-    );
+  return (
+    <div className="app">
+      <GlobalContextComponent>
+        <Toaster position="top-right" reverseOrder={false} />
+
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/manage-space/*" element={<ManageSpace />} />
+          <Route path="/rent-space/*" element={<RentSpace />} />
+          <Route path="/admin/*" element={<Admin />} />
+
+          {/* fallback */}
+          <Route path="*" element={<Home />} />
+        </Routes>
+      </GlobalContextComponent>
+    </div>
+  );
 }
 
 export default App;

@@ -1,45 +1,72 @@
-let query = require("../model/db.js");
+import Admin from "../model/Admin.model.js";
+import SpaceProvider from "../model/SpaceProvider.model.js";
 
-async function login(req, res) {
-    let result = await query(
-        "SELECT * FROM admin WHERE email = ? AND password = ?",
-        [req.body.email, req.body.password]
-    );
-    if (result.length) {
-        let data = await query("SELECT * FROM space_provider WHERE status=0");
+/**
+ * Admin Login
+ */
+export const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
-        res.json({
-            isSuccess: true,
-            message: "Login successfully",
-            data: data,
-        });
-    } else {
-        res.json({
-            isSuccess: false,
-            message: "Invalid email or password",
-            data: {},
-        });
+    // Check admin credentials
+    const admin = await Admin.findOne({ email, password });
+
+    if (!admin) {
+      return res.json({
+        isSuccess: false,
+        message: "Invalid email or password",
+        data: {},
+      });
     }
-}
 
-async function changeStatus(req, res) {
-    let result = await query(
-        "UPDATE space_provider SET status = ? WHERE providerId = ?",
-        [req.body.status, req.body.id]
+    // Fetch pending space providers (status = 0)
+    const data = await SpaceProvider.find({ status: 0 });
+
+    res.json({
+      isSuccess: true,
+      message: "Login successfully",
+      data,
+    });
+  } catch (error) {
+    res.json({
+      isSuccess: false,
+      message: "Server error",
+      data: {},
+    });
+  }
+};
+
+/**
+ * Change Space Provider Status
+ */
+export const changeStatus = async (req, res) => {
+  try {
+    const { id, status } = req.body;
+
+    const result = await SpaceProvider.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
     );
-    if (result.affectedRows) {
-        res.json({
-            isSuccess: true,
-            message: "Status changed successfully",
-            data: {},
-        });
-    } else {
-        res.json({
-            isSuccess: false,
-            message: "Something went wrong",
-            data: {},
-        });
-    }
-}
 
-module.exports = { login, changeStatus };
+    if (result) {
+      res.json({
+        isSuccess: true,
+        message: "Status changed successfully",
+        data: {},
+      });
+    } else {
+      res.json({
+        isSuccess: false,
+        message: "Something went wrong",
+        data: {},
+      });
+    }
+  } catch (error) {
+    res.json({
+      isSuccess: false,
+      message: "Server error",
+      data: {},
+    });
+  }
+};

@@ -1,46 +1,50 @@
-let multer = require("multer");
-const path = require("path");
+import multer from "multer";
+import path from "path";
+import { fileURLToPath } from "url";
 
-// Multuer Storage Setup
+// Fix __dirname for ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Multer Storage Setup
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        if (file.fieldname === "file") {
-            cb(null, path.join(__dirname, "../../public"));
-        }
-    },
-    filename: (req, file, cb) => {
-        let fileName = file.originalname.split(".");
-        cb(null, Date.now() + "." + fileName[fileName.length - 1]);
-    },
+  destination: (req, file, cb) => {
+    if (file.fieldname === "file") {
+      cb(null, path.join(__dirname, "../../public"));
+    }
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `${Date.now()}${ext}`);
+  },
 });
 
+// File Filter
 const fileFilter = (req, file, cb) => {
-    if (file.fieldname === "file") {
-        cb(null, true);
-    } else {
-        throw new Error(
-            "Form Data should only contain songThumbnail and songFile Fields"
-        );
-    }
+  if (file.fieldname === "file") {
+    cb(null, true);
+  } else {
+    cb(new Error("Only 'file' field is allowed"), false);
+  }
 };
 
 // Multer Instance
-let upload = multer({ storage, fileFilter });
+const upload = multer({ storage, fileFilter });
 
 // Multer Middleware
-let uploadMiddleware = upload.fields([{ name: "file", maxCount: 10 }]);
+export const uploadMiddleware = upload.fields([
+  { name: "file", maxCount: 10 },
+]);
 
-async function uploadHandler(req, res) {
-    let fileNames = req.files["file"].map((file) => file.filename);
-    console.log(fileNames);
-    res.status(200);
-    res.json({
-        isSuccess: true,
-        message: "File uploaded successfully",
-        data: {
-            fileUrl: fileNames,
-        },
-    });
-}
+// Upload Handler
+export const uploadHandler = async (req, res) => {
+  const fileNames = req.files?.file?.map((file) => file.filename) || [];
 
-module.exports = { uploadMiddleware, uploadHandler };
+  res.status(200).json({
+    isSuccess: true,
+    message: "File uploaded successfully",
+    data: {
+      fileUrl: fileNames,
+    },
+  });
+};
