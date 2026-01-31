@@ -8,17 +8,17 @@ import fetchData from "../../util/fetchData";
 import { GlobalContext } from "../../util/GlobalContextComponent";
 
 export default function Login() {
-  let gc = useContext(GlobalContext);
-  let navigate = useNavigate();
+  const gc = useContext(GlobalContext);
+  const navigate = useNavigate();
 
-  // controlled inputs (no logic change)
   const [formDetails, setFormDetails] = React.useState({
     email: "",
     password: "",
   });
 
   function validate() {
-    const emailRegex = /^[a-zA-Z0-9.]+@[a-zA-Z0-9.]+\.[a-zA-Z]{2,4}$/;
+    // ✅ CHANGED: safer email regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!formDetails.email) {
       toast.error("Email is required");
@@ -36,34 +36,38 @@ export default function Login() {
   }
 
   async function handlerLogin() {
-  if (!validate()) return;
+    if (!validate()) return;
 
-  let res = await fetchData("POST", "/api/admin/login", {
-    email: formDetails.email.trim(),
-    password: formDetails.password.trim(),
-  });
+    try {
+      const res = await fetchData("POST", "/api/admin/login", {
+        email: formDetails.email.trim(),
+        password: formDetails.password.trim(),
+      });
 
-  if (res?.isSuccess) {
-    toast.success(res.message);
+      if (res?.isSuccess) {
+        toast.success(res.message);
 
-    // backend returns pending providers
-    gc.setManageSpacePending(res.data || []);
+        gc.setManageSpacePending(res.data || []);
+        gc.setAdminLoggedIn(true); // ✅ CHANGED: THIS WAS MISSING
 
-    navigate("dashboard");
-  } else {
-    toast.error(res?.message || "Login failed");
+        navigate("/admin/dashboard"); // ✅ CHANGED: absolute path
+      } else {
+        toast.error(res?.message || "Login failed");
+      }
+    } catch (error) {
+      toast.error("Something went wrong");
+      console.error(error);
+    }
   }
-}
-
 
   return (
-    <section className=" h-[100vh] bg-1 bg-c1">
+    <section className="h-[100vh] bg-1 bg-c1">
       <div className="flex items-center justify-center w-full h-full">
         <div className="flex flex-col items-center justify-center gap-5 [&_input]:w-[350px] bg-white p-5 py-10 rounded-lg">
           <h1 className="text-xl font-bold">Login</h1>
 
           <input
-            type="text"
+            type="email" // ✅ CHANGED
             placeholder="Email Address"
             className="w-full max-w-xs input input-bordered"
             value={formDetails.email}

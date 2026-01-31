@@ -19,33 +19,45 @@ export default function Dashboard() {
   const [longitude, setLongitude] = useState(0);
   const [fileUrls, setFileUrls] = useState([]);
 
+  /* =======================
+     AUTH GUARD
+  ======================== */
   useEffect(() => {
-    // If no pending data, admin is not logged in (because backend gives pending only on login)
-    if (!gc?.manageSpacePending || gc.manageSpacePending.length === 0) {
+    if (!gc?.adminLoggedIn) {
       navigate("/admin");
     }
-    // eslint-disable-next-line
-  }, []);
+  }, [gc?.adminLoggedIn, navigate]);
 
+  /* =======================
+     CHANGE PROVIDER STATUS
+  ======================== */
   async function handlerChangeStatus(id, status) {
-    const res = await fetchData("POST", "/api/admin/change-status", {
-      id,
-      status,
-    });
+    try {
+      const res = await fetchData("POST", "/api/admin/change-status", {
+        id,
+        status,
+      });
 
-    if (res?.isSuccess) {
-      if (status === 1) toast.success("Account verified");
-      if (status === -1) toast.success("Account rejected");
+      if (res?.isSuccess) {
+        if (status === 1) toast.success("Account verified");
+        if (status === -1) toast.success("Account rejected");
 
-      // remove from pending list
-      gc.setManageSpacePending((old = []) =>
-        old.filter((p) => (p._id || p.providerId) !== id)
-      );
-    } else {
-      toast.error(res?.message || "Failed to change status");
+        // Remove updated provider from pending list
+        gc.setManageSpacePending((old = []) =>
+          old.filter((p) => (p._id || p.providerId) !== id)
+        );
+      } else {
+        toast.error(res?.message || "Failed to change status");
+      }
+    } catch (error) {
+      toast.error("Something went wrong");
+      console.error(error);
     }
   }
 
+  /* =======================
+     MODALS
+  ======================== */
   function showMapModal(lat, lng) {
     setLatitude(lat);
     setLongitude(lng);
@@ -53,7 +65,6 @@ export default function Dashboard() {
   }
 
   function showImageModal(urls) {
-    // backend stores fileUrls as array, but handle if frontend receives JSON string also
     let parsed = [];
     try {
       parsed = Array.isArray(urls) ? urls : JSON.parse(urls || "[]");
@@ -64,22 +75,24 @@ export default function Dashboard() {
     document.getElementById("image_modal")?.showModal();
   }
 
+  /* =======================
+     UI
+  ======================== */
   return (
     <section className="mt-[80px]">
-      {/* Table */}
       <div className="m-5 border rounded">
         <div className="overflow-x-auto">
           <table className="table [&_*]:whitespace-nowrap">
             <thead>
               <tr className="bg-base-200">
-                <th></th>
+                <th>#</th>
                 <th>User Name</th>
                 <th>Space Name</th>
                 <th>Email</th>
                 <th>Phone No</th>
                 <th>Timing</th>
                 <th>Max Space</th>
-                <th>Rate Per Hour</th>
+                <th>Rate / Hr</th>
                 <th>Location</th>
                 <th>Images</th>
                 <th>Action</th>
@@ -88,7 +101,7 @@ export default function Dashboard() {
 
             <tbody>
               {(gc?.manageSpacePending || []).map((e, i) => {
-                const providerId = e._id || e.providerId; // backend returns _id
+                const providerId = e._id || e.providerId;
 
                 return (
                   <tr key={providerId || i}>
@@ -98,37 +111,43 @@ export default function Dashboard() {
                     <td>{e.email}</td>
                     <td>{e.phoneNo}</td>
                     <td>
-                      {e.from} to {e.to}
+                      {e.from} - {e.to}
                     </td>
                     <td>{e.maxSpace}</td>
                     <td>{e.ratePerHour}</td>
 
-                    <td onClick={() => showMapModal(e.latitude, e.longitude)}>
-                      <span className="cursor-pointer hover:underline">
-                        Show
-                      </span>
+                    <td
+                      className="cursor-pointer text-blue-600 hover:underline"
+                      onClick={() =>
+                        showMapModal(e.latitude, e.longitude)
+                      }
+                    >
+                      Show
                     </td>
 
-                    <td onClick={() => showImageModal(e.fileUrls)}>
-                      <span className="cursor-pointer hover:underline">
-                        Show
-                      </span>
+                    <td
+                      className="cursor-pointer text-blue-600 hover:underline"
+                      onClick={() => showImageModal(e.fileUrls)}
+                    >
+                      Show
                     </td>
 
                     <td>
                       <div className="flex gap-3">
                         <button
-                          type="button"
-                          className="p-1 text-white bg-green-400 rounded active:bg-green-600"
-                          onClick={() => handlerChangeStatus(providerId, 1)}
+                          className="p-1 text-white bg-green-500 rounded active:bg-green-600"
+                          onClick={() =>
+                            handlerChangeStatus(providerId, 1)
+                          }
                         >
                           <IoCheckmarkOutline />
                         </button>
 
                         <button
-                          type="button"
-                          className="p-1 text-white bg-red-400 rounded active:bg-red-600"
-                          onClick={() => handlerChangeStatus(providerId, -1)}
+                          className="p-1 text-white bg-red-500 rounded active:bg-red-600"
+                          onClick={() =>
+                            handlerChangeStatus(providerId, -1)
+                          }
                         >
                           <RxCross1 />
                         </button>
@@ -138,9 +157,10 @@ export default function Dashboard() {
                 );
               })}
 
-              {(!gc?.manageSpacePending || gc.manageSpacePending.length === 0) && (
+              {(!gc?.manageSpacePending ||
+                gc.manageSpacePending.length === 0) && (
                 <tr>
-                  <td colSpan={11} className="text-center py-6">
+                  <td colSpan={11} className="py-6 text-center">
                     No pending space providers
                   </td>
                 </tr>
@@ -150,9 +170,9 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Map Modal */}
+      {/* MAP MODAL */}
       <dialog id="map_modal" className="modal">
-        <div className="w-11/12 max-w-5xl h-[70vh] modal-box">
+        <div className="modal-box w-11/12 max-w-5xl h-[70vh]">
           <Map latitude={latitude} longitude={longitude} />
         </div>
         <form method="dialog" className="modal-backdrop">
@@ -160,9 +180,9 @@ export default function Dashboard() {
         </form>
       </dialog>
 
-      {/* Image Modal */}
+      {/* IMAGE MODAL */}
       <dialog id="image_modal" className="modal">
-        <div className="w-11/12 max-w-5xl h-[70vh] modal-box overflow-hidden">
+        <div className="modal-box w-11/12 max-w-5xl h-[70vh] overflow-hidden">
           <Images fileUrls={fileUrls} />
         </div>
         <form method="dialog" className="modal-backdrop">

@@ -69,7 +69,7 @@ export const addUser = async (req, res) => {
  */
 export const getMarker = async (req, res) => {
   try {
-    const { latitude, longitude } = req.body;
+    const { latitude, longitude, from, to } = req.body;
 
     const providers = await SpaceProvider.find({
       status: 1,
@@ -77,10 +77,12 @@ export const getMarker = async (req, res) => {
       longitude: { $gte: longitude - 0.3, $lte: longitude + 0.3 },
     });
 
+    const data = providers.map((p) => p.toObject());
+
     res.json({
       isSuccess: true,
       message: "Marker fetched",
-      data: providers,
+      data,
     });
   } catch (error) {
     res.status(500).json({

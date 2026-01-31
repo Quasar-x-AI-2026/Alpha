@@ -10,8 +10,16 @@ connectDB();
 const app = express();
 
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:3000";
+// Allow localhost dev origins on any port; keep credentials enabled
 app.use(cors({
-  origin: CLIENT_URL,
+  origin: (origin, cb) => {
+    // In dev, allow any localhost origin or configured client URL
+    if (!origin) return cb(null, true);
+    if (origin.startsWith("http://localhost") || origin === CLIENT_URL) {
+      return cb(null, true);
+    }
+    return cb(null, false);
+  },
   credentials: true,
 }));
 

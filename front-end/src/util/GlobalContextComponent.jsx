@@ -6,6 +6,7 @@ function GlobalContextComponent({ children }) {
   const [manageSpace, setManageSpace] = useState({});
   const [manageSpacePending, setManageSpacePending] = useState([]);
   const [rentSpace, setRentSpace] = useState({});
+  const [adminLoggedIn, setAdminLoggedIn] = useState(false);
 
   return (
     <GlobalContext.Provider
@@ -18,6 +19,9 @@ function GlobalContextComponent({ children }) {
 
         rentSpace,
         setRentSpace,
+
+        adminLoggedIn,
+        setAdminLoggedIn,
       }}
     >
       {children}
